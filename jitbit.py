@@ -44,6 +44,7 @@ class JitBitAPI(object):
         Add user per https://www.jitbit.com/helpdesk/helpdesk-api/#CreateUser
         If successful, returns JitBit userId
         """
+        assert all([username, password, email]), "Must provide values for username, password and email"
         data = {
             "username": username,
             "password": password,
@@ -56,11 +57,17 @@ class JitBitAPI(object):
             "sendWelcomeEmail": send_welcome_email
         }
         response = self._make_request("CreateUser", data=data)
-        if response.status_code == 201:
-            logger.info("JitBit user created for %s %s", first_name, last_name)
-            return int(json.loads(response.content)["userId"])
-        logger.warn("JitBit user creation failed for %s %s, response code was %d", first_name, last_name,
-                    response.status_code)
+        if response.status_code == 200:
+            # there's no good way to differentiate between success and failure with this API
+            try:
+                jitbit_user_id = int(response.content)
+                logger.info("JitBit user created for %s %s", first_name, last_name)
+                return jitbit_user_id
+            except TypeError:
+                pass
+        logger.warn("JitBit user creation failed for %s %s, response was %s %d", first_name, last_name,
+                    response.content, response.status_code)
+        return None
 
     def update_user(self, user_id, username, password, email, first_name, last_name, company, phone, location,
                     notes="", department="", disabled=False):
