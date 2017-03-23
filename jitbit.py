@@ -65,18 +65,22 @@ class JitBitAPI(object):
                 return jitbit_user_id
             except TypeError:
                 pass
-        logger.warn("JitBit user creation failed for %s %s, response was %s %d", first_name, last_name,
-                    response.content, response.status_code)
+        elif response.status_code == 500:
+            logger.warn("500 error at JitBit for %s %s, it may be the user already exists", first_name, last_name)
+        else:
+            logger.warn("JitBit user creation failed for %s %s, response was %s %d", first_name, last_name,
+                        response.content, response.status_code)
         return None
 
     def update_user(self, user_id, username, password, email, first_name, last_name, company, phone, location,
                     notes="", department="", disabled=False):
         """
-        Update list of available parameters at  https://www.jitbit.com/helpdesk/helpdesk-api/#UpdateUser
+        Update list of available parameters at https://www.jitbit.com/helpdesk/helpdesk-api/#UpdateUser
         returns True/ False to indicate apparent success as JitBit's docs don't say they return any info
+        Everything except notes is a required field
         """
         data = {
-            "user_id": user_id,
+            "userId": user_id,
             "username": username,
             "password": password,
             "email": email,
@@ -85,16 +89,17 @@ class JitBitAPI(object):
             "phone": phone,
             "location": location,
             "company": company,
-            "notes": notes,
             "department": department,
             "disabled": disabled
         }
+        if notes:
+            data["notes"] = notes
         response = self._make_request("UpdateUser", data=data)
         if response.status_code == 200:
-            logger.info("JitBit user updated for %s %s", first_name, last_name)
+            logger.info("JitBit user updated for id %d", user_id)
             return True
-        logger.warn("JitBit user update failed for %s %s (id: %s), response code was %d", first_name, last_name,
-                    user_id, response.status_code)
+        logger.warn("JitBit user update failed for id %s, response code was %d, %s", user_id, response.status_code,
+                    response.content)
         return False
 
     def get_companies(self):
