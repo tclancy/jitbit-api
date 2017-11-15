@@ -4,11 +4,14 @@ import logging
 import requests
 from requests.auth import HTTPBasicAuth
 
+from django.conf import settings
+
 logger = logging.getLogger("jitbit")
 
 
 class JitBitAPI(object):
-    def __init__(self, api_url, username, password):
+    def __init__(self, api_url=settings.JITBIT_API_URL, username=settings.JITBIT_USERNAME,
+                 password=settings.JITBIT_PASSWORD):
         self.api_url = api_url
         self.authentication = HTTPBasicAuth(username, password)
 
@@ -36,7 +39,12 @@ class JitBitAPI(object):
 
     def get_user_by_email(self, email):
         response = self._make_request("UserByEmail?email=%s" % email)
-        return json.loads(response.content)
+        if response.status_code == 200:
+            try:
+                return json.loads(response.content)
+            except ValueError:
+                pass
+        logger.warn('Failure for get_user_by_email, status: %d, content: %s', response.status_code, response.content)
 
     def create_user(self, username, password, email, first_name, last_name, company, phone="", location="",
                     send_welcome_email=False):
@@ -65,6 +73,8 @@ class JitBitAPI(object):
                 return jitbit_user_id
             except TypeError:
                 pass
+            except ValueError:
+                pass
         elif response.status_code == 500:
             logger.warn("500 error at JitBit for %s %s, it may be the user already exists", first_name, last_name)
         else:
@@ -72,7 +82,7 @@ class JitBitAPI(object):
                         response.content, response.status_code)
         return None
 
-    def update_user(self, user_id, username, password, email, first_name, last_name, company, phone, location,
+    def update_user(self, user_id, username, email, first_name, last_name, company, phone, location, password=None,
                     notes="", department="", disabled=False):
         """
         Update list of available parameters at https://www.jitbit.com/helpdesk/helpdesk-api/#UpdateUser
@@ -82,7 +92,6 @@ class JitBitAPI(object):
         data = {
             "userId": user_id,
             "username": username,
-            "password": password,
             "email": email,
             "firstName": first_name,
             "lastName": last_name,
@@ -92,11 +101,13 @@ class JitBitAPI(object):
             "department": department,
             "disabled": disabled
         }
+        if password:
+            data["password"] = password
         if notes:
             data["notes"] = notes
         response = self._make_request("UpdateUser", data=data)
         if response.status_code == 200:
-            logger.info("JitBit user updated for id %d", user_id)
+            logger.info("JitBit user updated for id %s, user %s, email %s", user_id, username, email)
             return True
         logger.warn("JitBit user update failed for id %s, response code was %d, %s", user_id, response.status_code,
                     response.content)
