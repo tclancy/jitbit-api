@@ -4,14 +4,11 @@ import logging
 import requests
 from requests.auth import HTTPBasicAuth
 
-from django.conf import settings
-
 logger = logging.getLogger("jitbit")
 
 
 class JitBitAPI(object):
-    def __init__(self, api_url=settings.JITBIT_API_URL, username=settings.JITBIT_USERNAME,
-                 password=settings.JITBIT_PASSWORD):
+    def __init__(self, api_url, username, password):
         self.api_url = api_url
         self.authentication = HTTPBasicAuth(username, password)
 
